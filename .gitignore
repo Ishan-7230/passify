@@ -52,3 +52,11 @@ next-env.d.ts
 
 # local auth user store
 /data/
+
+# Backend local state and test reports
+.env.*
+!.env.example
+/supabase/.temp/
+/supabase/.branches/
+/playwright-report/
+/test-results/

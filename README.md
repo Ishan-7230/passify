@@ -1,4 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Passify is a Next.js pass issuance and verification application. The backend is being implemented in five approval-gated phases.
+
+- [Backend phases, repository audit and approval log](docs/backend-plan.md)
+- [Backend setup, database model and test commands](docs/backend-setup.md)
+- [Phase 1 implementation and validation report](docs/phase-1-report.md)
+
+Use Node.js 24. Copy `.env.example` to `.env.local` and configure the development Supabase project before starting the server. Phase 1 foundations do not yet replace the existing authentication or connect the pass builders.
 
 ## Getting Started
 
