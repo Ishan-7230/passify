@@ -1,11 +1,8 @@
-import { redirect } from "next/navigation";
 import { WorkspaceAuthForm } from "../../../components/auth/WorkspaceAuthForm";
-import { workspaceConfig } from "../../../components/auth/workspace";
-import { getSession } from "../../../lib/auth/session";
+import { getAuthPageState } from "../../../lib/auth/session";
 
 export default async function PersonalRegisterPage() {
-  const session = await getSession();
-  if (session?.workspace === "personal") redirect(workspaceConfig.personal.dashboardPath);
+  const signedIn = await getAuthPageState("personal");
 
-  return <WorkspaceAuthForm mode="personal" action="register" />;
+  return <WorkspaceAuthForm mode="personal" action="register" signedIn={signedIn} />;
 }

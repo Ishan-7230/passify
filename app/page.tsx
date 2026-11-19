@@ -120,27 +120,19 @@ const features = [
 ];
 
 const stats = [
-  { value: 10000, suffix: "+", label: "Passes Created" },
-  { value: 500,   suffix: "+", label: "Organizations" },
-  { value: 99,    suffix: "%", label: "Uptime" },
+  { value: 14, suffix: "", label: "Pass Templates" },
+  { value: 2, suffix: "", label: "Workspace Modes" },
+  { value: 3, suffix: "", label: "Export Options" },
 ];
 
 /* ──────────────────────────────────────────────
    Main Landing Page
 ────────────────────────────────────────────── */
 export default function LandingPage() {
-  const [particles, setParticles] = useState<React.CSSProperties[]>([]);
-
-  useEffect(() => {
-    setParticles(
-      Array.from({ length: 40 }, () => ({
-        left: `${Math.random() * 100}%`,
-        top:  `${Math.random() * 100}%`,
-        "--dur":   `${1.5 + Math.random() * 3}s`,
-        "--delay": `${Math.random() * 4}s`,
-      })) as React.CSSProperties[]
-    );
-  }, []);
+  const particles = Array.from({ length: 40 }, (_, i) => ({
+    left: `${(i * 37 + 11) % 100}%`, top: `${(i * 61 + 7) % 100}%`,
+    "--dur": `${1.5 + (i % 7) / 2}s`, "--delay": `${(i % 11) / 3}s`,
+  })) as React.CSSProperties[];
 
   return (
     <main

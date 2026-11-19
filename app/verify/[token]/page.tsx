@@ -1,10 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { verifyPass, type PassStatus } from "../../../lib/passes/verify";
-import { TiltCard } from "../../../components/ui/TiltCard";
+import { verifyPass as verifyPassLocal, type PassStatus } from "@/lib/passes/verify";
+import { verifyPass as verifyPassService } from "@/lib/services/verification.service";
+import { ApiError } from "@/lib/http/errors";
+import { TiltCard } from "@/components/ui/TiltCard";
 
-export const metadata = {
-  title: "Pass Verification | Passify",
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Verify Pass | Passify",
   description: "Public verification check for Passify digital and physical passes",
+  robots: { index: false, follow: false },
+  referrer: "no-referrer",
 };
 
 const STATUS_CONFIG: Record<
@@ -58,8 +65,57 @@ export default async function VerifyPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const result = verifyPass(token);
-  const config = STATUS_CONFIG[result.status];
+  let serviceResult: Awaited<ReturnType<typeof verifyPassService>> | null = null;
+  let rateLimited = false;
+
+  try {
+    serviceResult = await verifyPassService(token);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "RATE_LIMITED") {
+      rateLimited = true;
+    }
+  }
+
+  // If database lookup found the pass or reported expired/revoked, use service result.
+  // Otherwise fallback to local verification logic (supports demo passes A-01..A-04 and offline passes).
+  let passId = token;
+  let passName = "Verified Holder";
+  let role = "Authorized Pass Holder";
+  let organization = "Passify Network";
+  let workspace: "personal" | "organization" = "organization";
+  let status: PassStatus = "Invalid";
+  let issuedAt = new Date().toISOString().slice(0, 10);
+  let validUntil: string | undefined = undefined;
+  let revokedReason: string | undefined = undefined;
+  const verificationTimestamp = new Date().toUTCString();
+
+  if (serviceResult && serviceResult.status !== "not_found") {
+    passId = serviceResult.passNumber || token;
+    organization = serviceResult.organization || "Passify Organization";
+    if (serviceResult.issuedAt) issuedAt = new Date(serviceResult.issuedAt).toISOString().slice(0, 10);
+    if (serviceResult.expiresAt) validUntil = new Date(serviceResult.expiresAt).toISOString().slice(0, 10);
+
+    if (serviceResult.status === "active") status = "Active";
+    else if (serviceResult.status === "expired") status = "Expired";
+    else if (serviceResult.status === "revoked") {
+      status = "Revoked";
+      revokedReason = "Credential marked revoked in the database.";
+    }
+  } else {
+    // Local / fallback verification
+    const local = verifyPassLocal(token);
+    passId = local.id;
+    passName = local.name;
+    role = local.role;
+    organization = local.organization;
+    workspace = local.workspace;
+    status = local.status;
+    issuedAt = local.issuedAt;
+    validUntil = local.validUntil;
+    revokedReason = local.revokedReason;
+  }
+
+  const config = STATUS_CONFIG[status];
 
   return (
     <main
@@ -74,7 +130,6 @@ export default async function VerifyPage({
       <div className="pointer-events-none absolute inset-0 bg-slate-950/85" />
 
       <div className="relative z-10 w-full max-w-xl">
-        {/* Navigation back */}
         <div className="mb-6 flex items-center justify-between">
           <Link
             href="/"
@@ -87,7 +142,12 @@ export default async function VerifyPage({
           </span>
         </div>
 
-        {/* Verification Card */}
+        {rateLimited && (
+          <div className="mb-4 rounded-xl border border-rose-500/40 bg-rose-950/60 p-4 text-center text-xs text-rose-300">
+            Too many checks recently. Please wait a minute and try again.
+          </div>
+        )}
+
         <TiltCard
           glowColor={config.glowColor}
           className="rounded-3xl border-2 p-6 backdrop-blur-md sm:p-8"
@@ -96,7 +156,6 @@ export default async function VerifyPage({
             background: "linear-gradient(135deg, rgba(2, 8, 23, 0.95) 0%, rgba(15, 23, 42, 0.9) 100%)",
           }}
         >
-          {/* Header Status Badge */}
           <div className="text-center">
             <div
               className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 font-pixel text-2xl font-bold shadow-lg"
@@ -125,76 +184,71 @@ export default async function VerifyPage({
             </p>
           </div>
 
-          {/* Details Table */}
           <div className="mt-8 space-y-3 rounded-2xl border border-white/10 bg-black/50 p-5 font-sans">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-              <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Pass ID</span>
-              <span className="font-mono font-bold text-cyan-300">{result.id}</span>
+              <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Pass ID</span>
+              <span className="font-mono font-bold text-cyan-300">{passId}</span>
             </div>
 
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-              <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Holder Name</span>
-              <span className="font-bold text-white">{result.name}</span>
+              <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Holder Name</span>
+              <span className="font-bold text-white">{passName}</span>
             </div>
 
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-              <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Role / Title</span>
-              <span className="text-slate-200">{result.role}</span>
+              <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Role / Title</span>
+              <span className="text-slate-200">{role}</span>
             </div>
 
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-              <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Organization</span>
-              <span className="font-bold text-cyan-200">{result.organization}</span>
+              <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Issuer / Organization</span>
+              <span className="font-bold text-cyan-200">{organization}</span>
             </div>
 
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-              <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Workspace</span>
+              <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Workspace</span>
               <span className="font-pixel text-[10px] uppercase text-pink-300">
-                {result.workspace}
+                {workspace}
               </span>
             </div>
 
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-              <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Issue Date</span>
-              <span className="text-slate-300">{result.issuedAt}</span>
+              <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Issue Date</span>
+              <span className="text-slate-300">{issuedAt}</span>
             </div>
 
-            {result.validUntil && (
+            {validUntil && (
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5 text-xs">
-                <span className="font-pixel text-[11px] text-slate-400 uppercase tracking-wider">Valid Until</span>
-                <span
-                  className={result.status === "Expired" ? "font-bold text-rose-400" : "text-slate-300"}
-                >
-                  {result.validUntil}
+                <span className="font-pixel text-[11px] uppercase tracking-wider text-slate-400">Valid Until</span>
+                <span className={status === "Expired" ? "font-bold text-rose-400" : "text-slate-300"}>
+                  {validUntil}
                 </span>
               </div>
             )}
 
-            {result.revokedReason && (
+            {revokedReason && (
               <div className="rounded-xl border border-rose-500/30 bg-rose-950/40 p-3 text-xs text-rose-300">
                 <span className="font-pixel text-[10px] font-bold uppercase tracking-wider">Revocation Notice:</span>
-                <p className="mt-1">{result.revokedReason}</p>
+                <p className="mt-1">{revokedReason}</p>
               </div>
             )}
 
             <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
               <span className="font-pixel text-[10px] uppercase">Verified At</span>
-              <span className="font-mono text-[10px] text-slate-300">{result.verificationTimestamp}</span>
+              <span className="font-mono text-[10px] text-slate-300">{verificationTimestamp}</span>
             </div>
           </div>
 
-          {/* Verification Assurance Footer */}
           <div className="mt-6 flex flex-col items-center gap-2 border-t border-white/10 pt-4 text-center">
             <div className="flex items-center gap-2 font-pixel text-[10px] tracking-widest text-emerald-400">
               <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#39ff14]" />
               CRYPTOGRAPHIC VERIFICATION ACTIVE
             </div>
             <p className="text-[11px] text-slate-400">
-              Pass authenticity guaranteed through Passify cryptographic digital badge protocols.
+              This checks the pass record. It does not verify the identity of the person presenting it.
             </p>
           </div>
 
-          {/* Interactive Demo Switcher */}
           <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-slate-900/50 p-4">
             <p className="font-pixel text-[10px] uppercase tracking-wider text-cyan-400">
               Test Status Scenarios (Demo Passes):
