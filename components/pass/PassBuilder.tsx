@@ -45,7 +45,7 @@ export function PassBuilder({ workspaceId, mode, templateId, defaultName, organi
   }
   return <main className="scanlines relative min-h-screen overflow-x-hidden px-6 py-10 text-white md:px-12" style={{ backgroundImage: "linear-gradient(#020817dd,#020817ee),url('/arcade-bg.jpg')", backgroundSize: "cover", backgroundAttachment: "fixed" }}><div className="mx-auto max-w-6xl">
     <Link href={`/dashboard/${mode}/templates`} className="font-pixel text-xs text-slate-300">← Back to templates</Link>
-    <div className="mt-7 grid gap-8 lg:grid-cols-2"><section><p className="font-pixel text-sm" style={{ color: workspaceConfig[mode].accent }}>Step 2 of 3 · Personalize your pass</p><h1 className="mt-3 font-pixel text-3xl font-bold">ADD YOUR DETAILS</h1>
+    <div className="mt-7 grid grid-cols-1 gap-8 lg:grid-cols-2"><section><p className="font-pixel text-sm" style={{ color: workspaceConfig[mode].accent }}>Step 2 of 3 · Personalize your pass</p><h1 className="mt-3 font-pixel text-3xl font-bold">ADD YOUR DETAILS</h1>
       <form onSubmit={issue} className="mt-8 space-y-5 rounded-3xl border border-white/15 bg-slate-950/70 p-6"><fieldset disabled={!ready || busy} className="space-y-5">
         <label className="block font-pixel text-sm">Name<input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} required /></label>
         <label className="block font-pixel text-sm">{org ? "Role / Title" : "Title"}<input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} required /></label>

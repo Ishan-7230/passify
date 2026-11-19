@@ -9,8 +9,10 @@ import { type Workspace, workspaceConfig } from "@/components/auth/workspace";
 
 /** Always ask Auth for the current user. Never authorize from session cookies or metadata. */
 export async function getVerifiedUser(): Promise<User | null> {
+  // cookies() may signal request-time rendering to Next during a production build.
+  // Let that framework control flow escape rather than converting it to an outage.
+  const auth = await createClient({ readOnly: true });
   try {
-    const auth = await createClient({ readOnly: true });
     const { data, error } = await auth.auth.getUser();
     if (error) {
       if (error.name === "AuthSessionMissingError" || error.status === 401 || error.status === 403 || error.status === 400) return null;

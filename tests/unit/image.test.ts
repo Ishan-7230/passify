@@ -18,6 +18,12 @@ describe("decoded image validation", () => {
   it("rejects oversized input before decoding", async () => {
     await expect(processImage(Buffer.alloc(MAX_UPLOAD_BYTES + 1))).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
   });
+  it("rejects animated WebP even when its size and format are allowed", async () => {
+    const frames = Buffer.concat([Buffer.alloc(16 * 16 * 3,0),Buffer.alloc(16 * 16 * 3,255)]);
+    const input = await sharp(frames,{ raw:{ width:16,height:32,channels:3,pageHeight:16 } }).webp({ loop:0,delay:[100,100] }).toBuffer();
+    expect((await sharp(input,{ animated:true }).metadata()).pages).toBe(2);
+    await expect(processImage(input)).rejects.toMatchObject({ code:"INVALID_INPUT" });
+  });
   it("rejects compressed images exceeding the input pixel cap", async () => {
     const input = await sharp({ create: { width: 5000, height: 5000, channels: 3, background: "white" } }).png().toBuffer();
     await expect(processImage(input)).rejects.toMatchObject({ code: "INVALID_INPUT" });

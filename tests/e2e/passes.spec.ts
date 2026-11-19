@@ -48,11 +48,10 @@ test("both builders, all 14 exports, lifecycle, groups, import and tenant isolat
   await data(await page.request.patch(`/api/groups/${group.id}`,{ headers:{ Origin:appUrl },data:{ name:"Launch Team" } }));
   await page.goto("/dashboard/organization/builder?template=corporate-navy");
   await page.getByLabel("Name",{ exact:true }).fill("Alex Morgan"); await page.getByLabel("Role / Title",{ exact:true }).fill("Engineer");
-  await page.getByLabel("Group",{ exact:true }).selectOption(group.id);
+  await page.getByRole("combobox",{ name:"Group",exact:true }).selectOption(group.id);
   await page.getByRole("button",{ name:"GENERATE PASS" }).click();
   await expect(page).toHaveURL(/\/dashboard\/organization\/passes\/[a-f0-9-]+$/);
   const orgId = page.url().split("/").at(-1)!;
-  const issued: { id:string; mode:string; template:string; verificationUrl:string }[] = [];
   for (const template of [...passTemplates,...orgTemplates]) {
     const personal = template.id.startsWith("design-"); const mode = personal ? "personal" : "organization";
     let id = template.id === "design-1" ? firstId : template.id === "corporate-navy" ? orgId : "";
@@ -64,9 +63,9 @@ test("both builders, all 14 exports, lifecycle, groups, import and tenant isolat
       expect((await page.request.post("/api/passes",{ headers:{ Origin:appUrl,"Idempotency-Key":key },data:{ ...body,holderName:"Changed" } })).status()).toBe(409);
     }
     const detail = await data(await page.request.get(`/api/passes/${id}`));
-    issued.push({ id,mode,template:template.id,verificationUrl:detail.verificationUrl });
     await page.goto(`/dashboard/${mode}/passes/${id}`);
     await expect(page.getByRole("heading",{ name:"YOUR ISSUED PASS" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "Pass detail fits the viewport").toBe(true);
     const qr = await page.request.get(`/api/passes/${id}/qr`); expect(await decode(await qr.body())).toBe(detail.verificationUrl);
     const downloadWait = page.waitForEvent("download"); await page.getByRole("button",{ name:"DOWNLOAD PNG" }).click();
     const download = await downloadWait; const file = info.outputPath(`${template.id}.png`); await download.saveAs(file);
@@ -74,6 +73,10 @@ test("both builders, all 14 exports, lifecycle, groups, import and tenant isolat
     const pdfWait = page.waitForEvent("download"); await page.getByRole("button",{ name:"DOWNLOAD PDF" }).click();
     const pdf = await pdfWait; const pdfFile = info.outputPath(`${template.id}.pdf`); await pdf.saveAs(pdfFile);
     expect((await readFile(pdfFile)).subarray(0,5).toString()).toBe("%PDF-");
+    console.info(`Verified export: ${template.id}`);
+    if (info.project.name === "chromium" && (template.id === "design-1" || template.id === "corporate-navy")) {
+      await page.pdf({ path:info.outputPath(`${template.id}-print.pdf`),format:"A4",printBackground:true });
+    }
     if (template.id === "design-1" || template.id === "corporate-navy") await page.screenshot({ path:info.outputPath(`${mode}-detail.png`),fullPage:true });
   }
   const outsiderContext = await browser.newContext({ baseURL:appUrl }); const outsider = await outsiderContext.newPage();

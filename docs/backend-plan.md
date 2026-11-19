@@ -115,5 +115,6 @@ No fake endpoints or empty domain-service implementations are added just to matc
 ## Approval log
 
 - Phase 1: implemented and checked; see `phase-1-report.md`.
-- Phase 2: explicitly authorized, implemented; live integration validation in progress.
-- Phases 3-5: authorized by the user's follow-up to complete all phases.
+- Phase 2: explicitly authorized and implemented; real local Auth/Storage onboarding/recovery tests passed.
+- Phases 3-5: authorized by the user's follow-up to complete all phases; implementation and final
+  validation are recorded in `backend-report.md`. No further phase checkpoint approval is required.

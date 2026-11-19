@@ -1,98 +1,88 @@
-# Backend setup (Phase 1)
+# Setup and architecture
 
-Phase 1 provides foundations and migrations. Authentication, onboarding and pass services are
-still scheduled for later approval checkpoints. The existing UI is not yet a complete backend.
+## Environment
 
-## Prerequisites
-
-- Node.js 24 LTS and npm. `.nvmrc` and package engines record the runtime.
-- Docker Desktop using Linux containers for the local Supabase stack.
-- Development/test Supabase projects must be separate from production.
-
-On this Windows machine use `npm.cmd`/`npx.cmd` when PowerShell rejects the `.ps1` shims.
-
-## Local configuration
+Use Node.js 24, npm and Docker Desktop's Linux engine. Run `npm ci`, start Docker, then
+`npm run db:start`. Project ID `passify` isolates this stack from other local projects.
+First startup downloads images. The smaller stack used for validation can be started with:
 
 ```powershell
-npm.cmd ci
-Copy-Item .env.example .env.local
-npm.cmd run db:start
-npm.cmd run db:migrate
+npx.cmd supabase start --exclude realtime,imgproxy,studio,edge-runtime,logflare,vector,supavisor
 ```
 
-`db:start` starts only the repository's local Supabase stack. First start may download images.
-The installed Supabase CLI 3 makes `migration up` local by default (the old `--local` flag was removed).
-`db:migrate` passes no `--remote` flag; it does not target a linked project or reset data.
-Template records are included in versioned migrations, so no separate seed command is needed.
-Use `npm.cmd run db:stop` when finished; do not use database reset on a populated instance.
-
-Put actual local values in `.env.local`, never in a chat message, a tracked file, or client code:
+Copy `.env.example` to `.env.local` once; preserve existing configuration. Fill local keys from
+Supabase's startup output. Keep keys and startup logs private.
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Local API URL or development project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public Auth key (legacy local anon JWT is supported) |
-| `SUPABASE_SECRET_KEY` | Server-only secret key (legacy local service-role JWT is supported) |
-| `APP_URL` | Canonical application origin; no path, query or credentials |
-| `ALLOWED_ORIGINS` | Optional comma-separated exact additional app origins; no wildcards |
-| `AUTH_SECRET` | Existing HMAC auth only, until Phase 2 replaces it; at least 32 random characters |
+| `NEXT_PUBLIC_SUPABASE_URL` | Local `http://127.0.0.1:54321` or dedicated development project |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public Auth key; local legacy anon JWT supported |
+| `SUPABASE_SECRET_KEY` | Server-only key; local legacy service-role JWT supported |
+| `APP_URL` | Canonical origin, locally `http://localhost:3000`, no path/query |
+| `ALLOWED_ORIGINS` | Optional comma-separated exact additional origins, no wildcards |
 
-Next.js instrumentation validates required backend configuration before serving requests. Placeholder
-values are intentionally rejected. Production requires HTTPS for the application, Supabase and allowed
-origins. Client public values are bundled at build time, so configure them before building.
+Startup validates these values. Production requires HTTPS. Public values are embedded at build
+time. `AUTH_SECRET` and the old `passify_session` cookie are obsolete. Old JSON accounts are neither
+migrated nor deleted.
 
-Existing JSON-store users are **not** Supabase users. A real-user migration requires a separate approved
-plan; Phase 1 does not inspect or alter that file. Until Phase 2, the original auth UI still uses its old
-store/cookie and needs `AUTH_SECRET`. Do not treat this checkpoint as production-ready.
+Run `npm run db:migrate` and `npm run dev`. Supabase CLI 3's `migration up` is local by default;
+the old `--local` flag was removed. This applies pending migrations without resetting data or using
+a linked remote project. Five ordered migrations create schema, all template seeds, private bucket
+and transaction RPCs. Use `npm run db:stop` when done; do not routinely reset populated databases.
 
-## Checks without Docker or credentials
+Ports: app 3000, API 54321, PostgreSQL 54322, optional Studio 54323, local email inbox 54324.
 
-```powershell
-npm.cmd run test
-npm.cmd run db:types:check
-npm.cmd run lint:backend
-npm.cmd run typecheck
-```
+## Accounts and tests
 
-Database tests create a fresh in-memory PostgreSQL instance, install minimal Supabase-managed schema
-fixtures, then run the exact migration files. Fixtures create two unrelated owners and test composite
-foreign keys, revocation immutability, rollback, roles and Storage policies. Nothing contacts or modifies
-a real database. Full Supabase Auth, PostgREST, Storage API and browser flows require the real local
-stack in later phases; these tests are not a substitute for those checks.
+Register through either workspace's registration page. Confirmation and recovery email goes to
+`http://127.0.0.1:54324`; open its links in the originating browser for PKCE. A signed-in user can
+visit the other workspace's login page to create that mode without another account.
 
-```powershell
-npm.cmd run db:types
-```
+`accounts.spec.ts` tests real registration, confirmation, both onboarding flows, private assets,
+logout and recovery. `passes.spec.ts` creates unique confirmed local Auth fixtures, then uses real
+login, builders, APIs and browser downloads. Both desktop Chromium and Pixel 7 emulation are
+configured. Tests reject non-local Supabase targets. Test data remains in the isolated local stack
+for inspection. Never run this suite against production.
 
-Regenerates `lib/supabase/database.types.ts` from PostgreSQL catalogs after migrations. Check in the
-generated file. The generator fails on unmapped data types; extend it when introducing new types/RPCs.
+Install Chromium with `npx playwright install chromium`. Start app/database separately before
+`npm run test:e2e -- --workers=1`; the tests do not start them automatically. Test artifacts and
+traces are ignored by Git and may contain local session data; do not publish them unredacted.
 
-```powershell
-npm.cmd run lint
-npm.cmd run build
-```
+`npm test` executes unit tests and disposable PGlite PostgreSQL tests against the exact migrations,
+roles, constraints, RLS and transactions. Minimal fixtures simulate only Supabase-managed schemas;
+real Auth/PostgREST/Storage HTTP are exercised separately by browser tests.
 
-Full checks include the existing frontend; see the phase report for baseline issues and actual results.
-Playwright is configured for desktop and mobile. E2E scenarios will be implemented alongside real flows;
-`npm.cmd run test:e2e` intentionally fails if no tests exist (there is no pass-with-no-tests flag).
+`npm run db:types` generates types from migrated PostgreSQL catalogs; `db:types:check` catches drift.
+Extend the generator for new database types/RPC signatures. Explicitly nullable RPC arguments have
+a documented mapping because PostgreSQL catalogs do not store parameter nullability.
 
-## Data security model
+Run lint, typecheck and build before release. Webpack is selected for reproducible Windows builds.
+The existing Google fonts require build-time network access.
+
+Production builds also validate HTTPS environment values. A local HTTP `.env.local` is suitable
+for `npm run dev`, but configure production HTTPS values in the build environment before building
+for release. Do not alter local development keys to production keys just to run browser tests.
+
+## Architecture
 
 ```mermaid
 flowchart LR
   Browser --> Auth[Supabase Auth]
-  Browser --> Next[Next.js handlers / actions]
-  Next --> Guards[Verified user + input + origin + ownership]
-  Guards --> Services[Domain services / transactions]
-  Services --> DB[(PostgreSQL)]
+  Browser --> Next[Next.js handlers and actions]
+  Next --> Guards[Verified user, validation, origin, ownership]
+  Guards --> Services[Domain services]
+  Services --> RPC[Atomic PostgreSQL RPCs]
+  RPC --> DB[(PostgreSQL)]
   Services --> Storage[Private passify-assets]
+  Public[QR visitor] --> Verify[Minimal verification service]
+  Verify --> Limits[Shared database limits]
+  Limits --> RPC
 ```
 
-The browser Supabase client is for Auth, not application table queries. Public and authenticated
-database roles have no application privileges. Server services use the privileged client only after
-checking ownership; its bypass of RLS makes those checks mandatory. Future RPCs must be invoker-safe,
-restricted to service role and owner-scoped internally. Do not expose the secret client or key through
-`NEXT_PUBLIC_`, props, logging or responses.
+Browser Supabase access is for Auth only. Application tables have RLS and no anon/authenticated
+grants. Service credentials bypass RLS, so every private service checks ownership and transaction
+RPCs verify their confirmed actor/workspace. Proxy refreshes SSR cookies; server components verify
+the user through Auth. Application authorization never trusts editable account metadata.
 
 ```mermaid
 erDiagram
@@ -111,14 +101,29 @@ erDiagram
   WORKSPACES ||--o{ AUDIT_LOGS : audits
 ```
 
-All business dates use `timestamptz`. Expiry is derived at read time, not stored as a mutable status.
-Uploads use workspace-scoped random paths and database-backed references. File decoding, purpose
-validation, signed URLs, safe cleanup and upload compensation are implemented in Phase 2.
+Status is derived at read time: revoked first, then expiry at/before now, otherwise active.
+Onboarding, issuance, edits, revocation and imports commit audits atomically. Issuance/import
+receipts enforce workspace-scoped idempotency.
 
-## References
+## Assets and exports
 
-- Installed Next.js guides: route handlers, proxy, async cookies, instrumentation, environment variables
-  in `node_modules/next/dist/docs/` (read before implementation).
-- [Supabase SSR clients](https://supabase.com/docs/guides/auth/server-side/creating-a-client)
-- [Supabase row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- [Supabase Storage access control](https://supabase.com/docs/guides/storage/security/access-control)
+Images: decoded JPEG/PNG/WebP only, maximum 4 MiB and 20 million pixels, no animation. Sharp
+rotates, strips metadata, fits within 800×800 and encodes WebP at quality 85. Attachments require
+validated metadata and generated workspace-scoped paths. Browser bucket access is denied.
+Preview readbacks use owner-authorized 60-second signed URLs. Pass detail/export uses an
+authenticated same-origin image endpoint to avoid signed-URL expiry during capture. Both are
+no-store; signed URLs are never persisted.
+
+Exports refresh persisted data and await fonts, photos and QR. PNG is 3× resolution. PDF dimensions:
+personal 90×90 mm, organization 86×114.67 mm. Print isolates the badge; disable browser headers and
+footers and enable background graphics. Physical scans remain a release check. A separate phone
+cannot reach a `localhost` QR; production `APP_URL` must be a reachable canonical HTTPS origin.
+
+Optional PDF/print QA (requires Python with PyMuPDF): after a successful browser run, point these
+commands at its `passes-...-chromium` output directory. They render every exported PDF, require
+one page per file, then decode and compare each PDF's QR against the corresponding PNG.
+
+```powershell
+python scripts/render-export-pdfs.py <export-output-directory>
+node scripts/check-export-pdfs.mjs <export-output-directory>
+```

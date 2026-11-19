@@ -46,7 +46,10 @@ export function PassDetailView({ initialPass, groups }: { initialPass: PassDetai
       await Promise.all([...card.current!.querySelectorAll("img")].map(async (image) => { await image.decode(); if (!image.naturalWidth) throw new Error("An image did not load. Retry the export."); }));
       if (format === "print") { window.print(); return; }
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(card.current!, { pixelRatio: 3, cacheBust: true, backgroundColor: "#ffffff" });
+      // Private endpoints already use no-store. Do not append cache-busting query
+      // fields to their strict schemas, and never share cached photos across paths.
+      const dataUrl = await toPng(card.current!, { pixelRatio: 3, includeQueryParams: true,
+        fetchRequestInit: { cache: "no-store", credentials: "same-origin" }, style: { margin: "0" }, backgroundColor: "#ffffff" });
       if (format === "png") { const link = document.createElement("a"); link.download = `${fresh.pass_number}.png`; link.href = dataUrl; link.click(); }
       else { const { jsPDF } = await import("jspdf"); const width = org ? 86 : 90; const height = org ? 114.67 : 90;
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [width, height] }); pdf.addImage(dataUrl, "PNG", 0, 0, width, height); pdf.save(`${fresh.pass_number}.pdf`); }
@@ -56,7 +59,7 @@ export function PassDetailView({ initialPass, groups }: { initialPass: PassDetai
   return <main className="min-h-screen p-6 text-white md:p-12" style={{ backgroundImage: "linear-gradient(#020817dd,#020817ee),url('/arcade-bg.jpg')", backgroundSize: "cover", backgroundAttachment: "fixed" }}><div className="mx-auto max-w-6xl">
     <Link href={`/dashboard/${pass.workspace_type}`} className="text-sm text-cyan-300">← Dashboard</Link><h1 className="mt-6 font-pixel text-3xl">YOUR ISSUED PASS</h1>
     <p className="my-4 font-mono text-sm">{pass.pass_number} · <strong className={pass.status === "active" ? "text-green-300" : "text-rose-300"}>{pass.status.toUpperCase()}</strong></p>
-    <div className="grid gap-8 lg:grid-cols-2"><section><div id="pass-print-target" ref={card} className={`mx-auto bg-white ${org ? "w-[360px] max-w-full" : "w-[500px] max-w-full"}`}>
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2"><section><div id="pass-print-target" ref={card} className={`mx-auto bg-white ${org ? "w-[360px] max-w-full" : "w-[500px] max-w-full"}`}>
       {org ? <OrgBadgePreview maxWidth={360} template={orgTemplates.find((item) => item.id === pass.template_id)!} data={{ name: pass.holder_name, role: pass.holder_title, organization: pass.organization_name ?? "", idNumber: pass.external_id ?? "", validUntil: pass.expires_at ? expiryToDate(pass.expires_at, pass.timezone) : "", photoUrl: pass.photoUrl ?? "", qrUrl: `/api/passes/${pass.id}/qr`, passNumber: pass.pass_number }} />
         : <PersonalBadgePreview template={passTemplates.find((item) => item.id === pass.template_id)!} name={pass.holder_name} title={pass.holder_title} photoUrl={pass.photoUrl} qrUrl={`/api/passes/${pass.id}/qr`} passNumber={pass.pass_number} />}
     </div><div className="my-6 flex flex-wrap justify-center gap-3">{(["png", "pdf", "print"] as const).map((format) => <button key={format} disabled={!ready || busy} onClick={() => exportPass(format)} className="rounded-xl border border-cyan-400/50 px-5 py-3 font-pixel text-xs">{format === "print" ? "PRINT" : `DOWNLOAD ${format.toUpperCase()}`}</button>)}</div>

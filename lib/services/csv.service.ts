@@ -36,7 +36,7 @@ export function parseCsv(text: string, timezone: string, templateId: string, gro
       rows.push(value);
       rowNumbers.push(index + 2);
     } catch (error) {
-      rowErrors.push({ row: index + 2, message: error instanceof z.ZodError ? "Name/title must be 1–40 characters; external ID up to 20." : error instanceof Error ? error.message : "Invalid row." });
+      rowErrors.push({ row: index + 2, message: error instanceof z.ZodError ? "Name/title must be 1–40 characters; external ID up to 20." : error instanceof ApiError ? error.message : "Invalid date. Use a real YYYY-MM-DD date." });
     }
   });
   return { rows, rowNumbers, totalRows: result.data.length, rowErrors };
