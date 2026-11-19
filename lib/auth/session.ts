@@ -70,3 +70,38 @@ export async function requireSession(workspace: Workspace) {
   }
   return session;
 }
+
+export type ResetTokenPayload = {
+  email: string;
+  workspace: Workspace;
+  expiresAt: number;
+};
+
+export function createResetToken(email: string, workspace: Workspace): string {
+  const payload: ResetTokenPayload = {
+    email,
+    workspace,
+    expiresAt: Date.now() + 1000 * 60 * 60, // 1 hour validity
+  };
+  const serialized = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = sign(serialized);
+  return `${serialized}.${signature}`;
+}
+
+export function verifyResetToken(token: string): ResetTokenPayload | null {
+  const [serialized, signature] = token.split(".");
+  if (!serialized || !signature) return null;
+
+  const expected = Buffer.from(sign(serialized));
+  const given = Buffer.from(signature);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(serialized, "base64url").toString("utf8")) as ResetTokenPayload;
+    if (payload.expiresAt <= Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+

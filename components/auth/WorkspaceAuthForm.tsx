@@ -111,6 +111,16 @@ export function WorkspaceAuthForm({ mode, action }: WorkspaceAuthFormProps) {
                 style={{ borderColor: `${config.accent}50` }}
                 placeholder="••••••••"
               />
+              {action === "login" && (
+                <div className="flex justify-end pt-1">
+                  <Link
+                    href={`/forgot-password?workspace=${mode}`}
+                    className="text-xs font-pixel text-slate-400 hover:text-white transition"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              )}
             </div>
             <button
               type="submit"

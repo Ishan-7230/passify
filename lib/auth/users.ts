@@ -75,3 +75,23 @@ export async function authenticateUser(email: string, password: string, workspac
   if (!user) return null;
   return (await verifyPassword(password, user.passwordHash)) ? user : null;
 }
+
+export async function findUserByEmail(email: string, workspace: Workspace): Promise<StoredUser | null> {
+  const users = await readUsers();
+  return users.find((u) => u.email === email && u.workspace === workspace) ?? null;
+}
+
+export async function updateUserPassword(
+  email: string,
+  workspace: Workspace,
+  newPassword: string
+): Promise<boolean> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.email === email && u.workspace === workspace);
+  if (index === -1) return false;
+
+  users[index].passwordHash = await hashPassword(newPassword);
+  await writeUsers(users);
+  return true;
+}
+
