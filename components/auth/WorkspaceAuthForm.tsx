@@ -4,15 +4,16 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { type Workspace, workspaceConfig } from "./workspace";
 import { TiltCard } from "../ui/TiltCard";
-import { login, register } from "../../lib/auth/actions";
+import { login, register, selectWorkspace } from "../../lib/auth/actions";
 
 type WorkspaceAuthFormProps = {
   mode: Workspace;
   action: "login" | "register";
+  signedIn?: boolean;
 };
 
-export function WorkspaceAuthForm({ mode, action }: WorkspaceAuthFormProps) {
-  const [state, formAction, isPending] = useActionState(action === "login" ? login : register, undefined);
+export function WorkspaceAuthForm({ mode, action, signedIn = false }: WorkspaceAuthFormProps) {
+  const [state, formAction, isPending] = useActionState(signedIn ? selectWorkspace : action === "login" ? login : register, undefined);
   const config = workspaceConfig[mode];
   const isOrganization = mode === "organization";
 
@@ -62,6 +63,7 @@ export function WorkspaceAuthForm({ mode, action }: WorkspaceAuthFormProps) {
 
           <form action={formAction} className="space-y-5">
             <input type="hidden" name="workspace" value={mode} />
+            {!signedIn && <>
             {action === "register" && (
               <div className="space-y-2">
                 <label htmlFor="name" className="block text-sm font-bold font-pixel text-slate-200">
@@ -112,6 +114,8 @@ export function WorkspaceAuthForm({ mode, action }: WorkspaceAuthFormProps) {
                 placeholder="••••••••"
               />
             </div>
+            </>}
+            {signedIn && <p className="text-center text-sm text-slate-300">You are signed in. Continue to create your {config.label.toLowerCase()} workspace.</p>}
             <button
               type="submit"
               disabled={isPending}
@@ -125,7 +129,9 @@ export function WorkspaceAuthForm({ mode, action }: WorkspaceAuthFormProps) {
                 {state.error}
               </p>
             )}
+            {state?.message && <p role="status" className="text-center text-sm text-cyan-200">{state.message}</p>}
           </form>
+          {action === "login" && <Link href={`/auth/forgot-password?workspace=${mode}`} className="mt-5 block text-center text-sm text-slate-300 underline">Forgot password?</Link>}
 
           <div className="mt-8 text-center text-sm text-slate-400 font-pixel">
             {action === "login" ? "New user? " : "Already registered? "}
