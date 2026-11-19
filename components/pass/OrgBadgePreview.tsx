@@ -7,6 +7,8 @@ export type OrgBadgeData = {
   idNumber?: string;
   validUntil?: string;
   photoUrl?: string;
+  qrUrl?: string;
+  passNumber?: string;
 };
 
 type OrgBadgePreviewProps = {
@@ -25,7 +27,7 @@ export function OrgBadgePreview({ template, data, maxWidth = 220 }: OrgBadgePrev
   const photo = (
     <div
       className="flex items-center justify-center overflow-hidden rounded-md"
-      style={{ width: layout === "sidebar" ? "55%" : "36%", aspectRatio: "3 / 4", background: muted }}
+      style={{ width: layout === "sidebar" ? data?.qrUrl ? "30%" : "55%" : "36%", aspectRatio: "3 / 4", background: muted }}
     >
       {data?.photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -77,6 +79,14 @@ export function OrgBadgePreview({ template, data, maxWidth = 220 }: OrgBadgePrev
     <div className="h-2 w-1/3 rounded" style={{ background: accent }} />
   );
 
+  const verification = data?.qrUrl ? <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+    <span className="break-all font-mono text-[9px] font-bold">{data.passNumber}</span>
+    <div className="shrink-0 rounded bg-white p-1" style={{ width: "38%", maxWidth: 112 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={data.qrUrl} alt="Verification QR" className="aspect-square w-full" />
+    </div>
+  </div> : <div className="mt-auto h-6 rounded-sm" style={{ background: accent, opacity: 0.8 }} />;
+
   return (
     <div
       className="mx-auto flex aspect-[3/4] w-full flex-col overflow-hidden rounded-xl shadow-xl"
@@ -98,7 +108,7 @@ export function OrgBadgePreview({ template, data, maxWidth = 220 }: OrgBadgePrev
             {orgLine}
             <div className="mt-4 flex justify-center">{photo}</div>
             <div className="mt-4 flex flex-col">{details}</div>
-            <div className="mt-auto h-6 rounded-sm" style={{ background: accent, opacity: 0.8 }} />
+            {verification}
           </div>
         </div>
       ) : (
@@ -118,7 +128,7 @@ export function OrgBadgePreview({ template, data, maxWidth = 220 }: OrgBadgePrev
               {photo}
               {details}
             </div>
-            <div className="mt-auto grid grid-cols-5 gap-[2px]">
+            {data?.qrUrl ? verification : <div className="mt-auto grid grid-cols-5 gap-[2px]">
               {Array.from({ length: 20 }).map((_, i) => (
                 <div
                   key={i}
@@ -126,7 +136,7 @@ export function OrgBadgePreview({ template, data, maxWidth = 220 }: OrgBadgePrev
                   style={{ background: text, opacity: i % 3 === 0 ? 0.8 : 0.25 }}
                 />
               ))}
-            </div>
+            </div>}
           </div>
           <div
             className="py-1.5 text-center text-[10px] font-bold tracking-[0.35em]"

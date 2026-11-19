@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Passify
 
-## Getting Started
+Pass issuance and verification for personal and organization workspaces, using Next.js,
+Supabase Auth/PostgreSQL/private Storage, TypeScript and Zod. Includes all 14 original templates,
+private images, QR verification, management, groups, CSV import and PNG/PDF/print export.
 
-First, run the development server:
+## Local setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Use Node.js 24 and Docker Desktop with Linux containers. On Windows, use `.cmd` shims if
+PowerShell blocks npm scripts.
+
+```powershell
+npm.cmd ci
+npm.cmd run db:start
+if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
+# Fill .env.local with the local Supabase URL and keys printed by Supabase.
+npm.cmd run db:migrate
+npm.cmd run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Register, then open the confirmation email in the local mail inbox
+at http://127.0.0.1:54324 using the same browser. One confirmed account can create one workspace
+of each type. There are no default account credentials. The old JSON user store is no longer used;
+old demo accounts must register again.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Validation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+npm.cmd test
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd run db:types:check
+npm.cmd run build
+npx.cmd playwright install chromium
+# Keep the local app and Supabase running in separate terminals:
+npm.cmd run test:e2e -- --workers=1
+```
 
-## Learn More
+Unit/database tests need no credentials or Docker. Browser tests require the isolated local stack
+and create unique test users. Webpack is selected explicitly because the original Turbopack/PostCSS
+worker failed on this Windows setup.
 
-To learn more about Next.js, take a look at the following resources:
+- [Setup and architecture](docs/backend-setup.md)
+- [API contracts](docs/api.md)
+- [Deployment, security and operations](docs/operations.md)
+- [Implementation and validation report](docs/backend-report.md)
+- [Five-phase plan](docs/backend-plan.md)
+- [Historical Phase 1 report](docs/phase-1-report.md)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+QR codes check the current pass record; they do not prove the presenter's identity. A downloaded
+pass still verifies against current expiry/revocation status.

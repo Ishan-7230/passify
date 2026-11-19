@@ -1,11 +1,8 @@
-import { redirect } from "next/navigation";
 import { WorkspaceAuthForm } from "../../../components/auth/WorkspaceAuthForm";
-import { workspaceConfig } from "../../../components/auth/workspace";
-import { getSession } from "../../../lib/auth/session";
+import { getAuthPageState } from "../../../lib/auth/session";
 
 export default async function OrganizationRegisterPage() {
-  const session = await getSession();
-  if (session?.workspace === "organization") redirect(workspaceConfig.organization.dashboardPath);
+  const signedIn = await getAuthPageState("organization");
 
-  return <WorkspaceAuthForm mode="organization" action="register" />;
+  return <WorkspaceAuthForm mode="organization" action="register" signedIn={signedIn} />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 
 /* ── individual neon star ── */
 function Star({ style }: { style: React.CSSProperties }) {
@@ -110,18 +110,10 @@ const options = [
 ];
 
 export default function Home() {
-  const [stars, setStars] = useState<React.CSSProperties[]>([]);
-
-  useEffect(() => {
-    // Generate random pixel stars
-    const generated = Array.from({ length: 30 }, (_, i) => ({
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      "--dur": `${1.5 + Math.random() * 3}s`,
-      "--delay": `${Math.random() * 3}s`,
-    })) as React.CSSProperties[];
-    setStars(generated);
-  }, []);
+  const stars = Array.from({ length: 30 }, (_, i) => ({
+    left: `${(i * 37 + 11) % 100}%`, top: `${(i * 61 + 7) % 100}%`,
+    "--dur": `${1.5 + (i % 7) / 2}s`, "--delay": `${(i % 9) / 3}s`,
+  })) as React.CSSProperties[];
 
   return (
     <main
@@ -207,7 +199,7 @@ export default function Home() {
                 } as React.CSSProperties}
               >
                 {/* Icon */}
-                <div className="animate-float mb-5 text-5xl text-center w-16 h-16 flex items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.05)", animationDelay: `${Math.random()}s` }}>
+                <div className="animate-float mb-5 text-5xl text-center w-16 h-16 flex items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.05)", animationDelay: option.title === "Personal" ? "0.2s" : "0.6s" }}>
                   {option.icon}
                 </div>
 
